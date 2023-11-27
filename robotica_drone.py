@@ -21,8 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 import numpy as np
-import cv2
 import time
+import math
 
 from zmqRemoteApi import RemoteAPIClient
 
@@ -52,8 +52,6 @@ class Coppelia():
     def is_running(self):
         return self.sim.getSimulationState() != self.sim.simulation_stopped
 
-import math
-import random
 
 class QuadCopter():
 
@@ -76,8 +74,6 @@ class QuadCopter():
         self.maxParticleCount = 50
         self.velocity = [0.1, 0, 0]
 
-        # This control algo was quickly written and is dirty and not optimal.
-        # It just serves as a SIMPLE example
         self.d = sim.getObject(f'/{robot_id}/base')
 
         self.propellerHandles = []
