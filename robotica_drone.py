@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import random
 import numpy as np
 import time
 import math
@@ -55,13 +56,11 @@ class Coppelia():
 
 class QuadCopter():
 
-    num_sonar = 16
-    sonar_max = 1.0
-
     def __init__(self, sim, robot_id):
         self.sim = sim
         print('*** getting handles', robot_id)
 
+        # Atributos de las particulas debajo del dron
         self.particlesAreVisible = True
         self.simulateParticles = True
         self.fakeShadow = True
@@ -74,8 +73,6 @@ class QuadCopter():
         self.maxParticleCount = 50
         self.velocity = [0.1, 0, 0]
 
-        self.d = sim.getObject(f'/{robot_id}/base')
-
         self.propellerHandles = []
         self.jointHandles = []
         self.particleObjects = [-1, -1, -1, -1]
@@ -83,7 +80,7 @@ class QuadCopter():
         self.ttype = (sim.particle_roughspheres + sim.particle_cyclic +
                 sim.particle_respondable1to4 + sim.particle_respondable5to8 +
                 sim.particle_ignoresgravity)
-
+        
         if not self.particlesAreVisible:
             self.ttype += self.sim.particle_invisible
 
@@ -91,13 +88,24 @@ class QuadCopter():
             self.propellerHandles.append(sim.getObject(f'/{robot_id}/propeller[{i}]/respondable'))
             self.jointHandles.append(sim.getObject(f'/{robot_id}/propeller[{i}]/joint'))
 
+            # Crea particulas debajo de los motores:
             if self.simulateParticles:
                 self.particleObjects[i] = self.sim.addParticleObject(
                     self.ttype, self.particleSize, self.particleDensity, [2, 1, 0.2, 3, 0.4],
                     self.particleLifeTime, self.maxParticleCount, [0.3, 0.7, 1]
                 )
 
+        if self.fakeShadow:
+            self.shadowCont = self.sim.addDrawingObject(
+                self.sim.drawing_discpts + self.sim.drawing_cyclic +
+                self.sim.drawing_25percenttransparency + self.sim.drawing_50percenttransparency +
+                self.sim.drawing_itemsizes, 0.2, 0, -1, 1
+            )
+
+        # Conecta con el dron segun su robot_id
+        self.d = sim.getObject(f'/{robot_id}/base')
         self.heli = sim.getObject(f'/{robot_id}')
+        
         self.pParam = 2
         self.iParam = 0
         self.dParam = 0
@@ -110,121 +118,107 @@ class QuadCopter():
         self.psp1 = 0
         self.prevEuler = 0
 
-        if self.fakeShadow:
-            self.shadowCont = self.sim.addDrawingObject(
-                self.sim.drawing_discpts + self.sim.drawing_cyclic +
-                self.sim.drawing_25percenttransparency + self.sim.drawing_50percenttransparency +
-                self.sim.drawing_itemsizes, 0.2, 0, -1, 1
-            )
-
     def cleanup(self):
+        '''
+        Elimina los objetos creados en la simulacion
+        '''
+
         self.sim.removeDrawingObject(self.shadowCont)
         for i in range(len(self.particleObjects)):
             self.sim.removeParticleObject(self.particleObjects[i])
 
-
     def actuation(self, speed):
+        '''
+        Actua sobre el dron para que se mueva en la direccion indicada
+        '''
+        # Obtiene las coordenadas segun el sistema de referencia del mundo (x,y,z)
         pos = self.sim.getObjectPosition(self.d, self.sim.handle_world)
+        
+        # Crea un objeto que proyecta una sombra debajo del dron
         if self.fakeShadow:
             itemData = [pos[0], pos[1], 0.002, 0, 0, 0, 1, 0.2]
             self.sim.addDrawingObjectItem(self.shadowCont, itemData)
 
-        # Vertical control:
-        targetPos = self.sim.getObjectPosition(self.d, self.sim.handle_world)
-        targetPos = np.array(targetPos) + np.array(speed)
-        pos = self.sim.getObjectPosition(self.d, self.sim.handle_world)
+        ## Control vertical:
+        # Target position: La posicion actual mas la velocidad (x,y,z)
+        targetPos = np.array(pos) + np.array(speed)
+        
+        # Velocidad lineal y angular del dron
         l = self.sim.getVelocity(self.heli)
         e = (targetPos[2] - pos[2])
 
         self.cumul = self.cumul + e
         pv = self.pParam * e
-        thrust = 5.45 + pv + self.iParam * self.cumul + self.dParam * (e - self.lastE) + l[0][0] * self.vParam
+        # Fuerza de empuje aplicada al dron
+        thrust = 5.45 + pv + self.iParam * self.cumul + self.dParam * (e - self.lastE) + l[0][2] * self.vParam
         self.lastE = e
 
-        # Horizontal control:
-        sp = speed
-        m = self.sim.getObjectMatrix(self.d, self.sim.handle_world)
+        ## Horizontal control:
+
+        # Obtiene la matriz de transformación del dron en relación con el mundo
+        m = self.sim.getObjectMatrix(self.d, self.sim.handle_world) # Array of 12 values [Vx0 Vy0 Vz0 P0 Vx1 Vy1 Vz1 P1 Vx2 Vy2 Vz2 P2]
+        
+        # Define y transforma el vector de dirección horizontal x del dron en el sistema de referencia del mundo
         vx = [1, 0, 0]
         vx = self.sim.multiplyVector(m, vx)
+
+        # Define y transforma el vector de dirección horizontal y del dron en el sistema de referencia del mundo
         vy = [0, 1, 0]
         vy = self.sim.multiplyVector(m, vy)
+
+        # Calcula el error en la inclinación alpha del dron, vy[2] es la componente z del vector vy
         alphaE = (vy[2] - m[11])
         alphaCorr = 0.25 * alphaE + 2.1 * (alphaE - self.pAlphaE)
+        self.pAlphaE = alphaE
+
+        # Calcula el error en la inclinación beta del dron, vx[2] es la componente z del vector vx
         betaE = (vx[2] - m[11])
         betaCorr = -0.25 * betaE - 2.1 * (betaE - self.pBetaE)
-        self.pAlphaE = alphaE
         self.pBetaE = betaE
-        alphaCorr = alphaCorr + sp[2] * 0.005 + 1 * (sp[2] - self.psp2)
-        betaCorr = betaCorr - sp[0] * 0.005 - 1 * (sp[0] - self.psp1)
-        self.psp2 = sp[2]
-        self.psp1 = sp[0]
+        
+        alphaCorr = alphaCorr + speed[1] * 0.005 + 1 * (speed[1] - self.psp2)
+        self.psp2 = speed[1]
 
-        # Rotational control:
-        euler = np.zeros(3) - np.array(speed)
-        rotCorr = euler[2] * 0.1 + 2 * (euler[2] - self.prevEuler)
-        self.prevEuler = euler[2]
+        betaCorr = betaCorr - speed[0] * 0.005 - 1 * (speed[0] - self.psp1)
+        self.psp1 = speed[0]
 
-        print(thrust)
-        print(alphaCorr)
-        print(betaCorr)
-        print(rotCorr)
+        ## Control Rotacional:
+        euler=self.sim.getObjectOrientation(self.d,self.sim.handle_world)
+        rotCorr=euler[2]*0.1+2*(euler[2]-self.prevEuler)
+        self.prevEuler=euler[2]
 
-        # Decide of the motor velocities:
+        # Decide las velocidades de los motores :
         self.handle_propeller(1, thrust * (1 - alphaCorr + betaCorr + rotCorr))
         self.handle_propeller(2, thrust * (1 - alphaCorr - betaCorr - rotCorr))
         self.handle_propeller(3, thrust * (1 + alphaCorr - betaCorr + rotCorr))
         self.handle_propeller(4, thrust * (1 + alphaCorr + betaCorr - rotCorr))
 
-
     def handle_propeller(self, index, particle_velocity):
+        '''
+        Actua sobre el motor indicado para que se mueva a la velocidad indicada
+        '''
         propellerRespondable = self.propellerHandles[index - 1]
         propellerJoint = self.jointHandles[index - 1]
         propeller = self.sim.getObjectParent(propellerRespondable)
-        particleObject = self.particleObjects[index - 1]
-        maxParticleDeviation = math.tan(
-            self.particleScatteringAngle * 0.5 * math.pi / 180) * particle_velocity
-        notFullParticles = 0
 
+        notFullParticles = 0
         t = self.sim.getSimulationTime()
         self.sim.setJointPosition(propellerJoint, t * 10)
         ts = self.sim.getSimulationTimeStep()
 
         m = self.sim.getObjectMatrix(propeller, self.sim.handle_world)
-        particleCnt = 0
-        pos = [0, 0, 0]
-        dir = [0, 0, 1]
 
         requiredParticleCnt = self.particleCountPerSecond * ts + notFullParticles
         notFullParticles = requiredParticleCnt % 1
         requiredParticleCnt = math.floor(requiredParticleCnt)
 
-        #while particleCnt < requiredParticleCnt:
-        #    x = (random.random() - 0.5) * 2
-        #    y = (random.random() - 0.5) * 2
-        #    if x * x + y * y <= 1:
-        #        if self.simulateParticles:
-        #            pos[0] = x * 0.08
-        #            pos[1] = y * 0.08
-        #            pos[2] = -self.particleSize * 0.6
-        #            dir[0] = pos[0] + \
-        #                (random.random() - 0.5) * maxParticleDeviation * 2
-        #            dir[1] = pos[1] + \
-        #                (random.random() - 0.5) * maxParticleDeviation * 2
-        #            dir[2] = pos[2] - particle_velocity * \
-        #                (1 + 0.2 * (random.random() - 0.5))
-        #            pos = self.sim.multiplyVector(m, pos)
-        #            dir = self.sim.multiplyVector(m, dir)
-        #            itemData = [pos[0], pos[1], pos[2], dir[0], dir[1], dir[2]]
-        #            self.sim.addParticleObjectItem(particleObject, itemData)
-        #        particleCnt += 1
-
         # Apply a reactive force onto the body:
-        totalExertedForce = (particleCnt * self.particleDensity * particle_velocity *
+        totalExertedForce = (requiredParticleCnt * self.particleDensity * particle_velocity *
                             math.pi * self.particleSize * self.particleSize *
                             self.particleSize) / (6 * ts)
         force = [0, 0, totalExertedForce]
-        m[4] = 0
-        m[8] = 0
+        m[3] = 0
+        m[7] = 0
         m[11] = 0
         force = self.sim.multiplyVector(m, force)
         rotDir = 1 - np.mod(index, 2) * 2
@@ -232,16 +226,16 @@ class QuadCopter():
         torque = self.sim.multiplyVector(m, torque)
         self.sim.addForceAndTorque(propellerRespondable, force, torque)
 
-
 def main(args=None):
     coppelia = Coppelia()
     robot = QuadCopter(coppelia.sim, 'Quadcopter')
-    robot.actuation()
+    speed = [0,0,0]
+    robot.actuation(speed)
     coppelia.start_simulation()
     while (t := coppelia.sim.getSimulationTime()) < 3:
         print(f'Simulation time: {t:.3f} [s]')
     coppelia.stop_simulation()
-
+    robot.cleanup()
 
 if __name__ == '__main__':
     main()
