@@ -39,13 +39,6 @@
 - **Quadricopter**
     - Represents the drone with its respective attributes and sensors.
 
-
-
-| Method               | Parameters|                Description                           |        Return                    |
-|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
-
-| land                 | sMap - Object Scene Map | Centers the quadricopter with the object | True if found sucess it and false if lose the object |
-
 - **SceneMap**
     - Fundamental for define the limits of the quadricopter simpler.
 
@@ -90,13 +83,6 @@
 |:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
 | getStateColision     |           | Checks if the quadricopter will collide              | Return true if will collide and false if not |
 
-## Documentation
+## Wiki
 
-- [VREP](http://www.coppeliarobotics.com/helpFiles/)
-
-## Community
-
-- [Forum](http://www.forum.coppeliarobotics.com)
-
-## Tanks
-Thanks you cimantec that allowed me to perform this test which provided knowing and learning how to use robotic automation tools. I would like to improve and learn a lot more in this area of study.
+- [GitHub](https://github.com/gonmarmar5/FlightCommander/wiki/)
