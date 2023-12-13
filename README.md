@@ -1,59 +1,102 @@
-# CoppeliaSim zmqRemoteApi Python client
+# FlightCommander.py 🚁
 
-Python client for the zmqRemoteApi, [protocol verison 2](https://github.com/CoppeliaRobotics/zmqRemoteApi/blob/master/PROTOCOL.md#versions) (note: starting from pip package version 2.x, the major version number (e.g. 2) matches with the protocol version used by CoppeliaSim).
+## Requirements
 
-## Installing:
+- Python v3.6 or greater
+- V-REP 3.6.2 or greater
+- Linux 64x
 
-```sh
-python3 -m pip install coppeliasim-zmqremoteapi-client
-```
+## Quick Start 🏁
 
-## Usage
+- **Make sure you have Python 3.6 or above installed**
 
-```python
-from coppeliasim_zmqremoteapi_client import *
+  - `python3 --version`
 
-# create a client to connect to zmqRemoteApi server:
-# (creation arguments can specify different host/port,
-# defaults are host='localhost', port=23000)
-client = RemoteAPIClient()
 
-# get a remote object:
-sim = client.require('sim')
+- **Install Python from Pyenv**
 
-# call API function:
-h = sim.getObject('/Floor')
-print(h)
-```
+  - Install [pyenv](https://mrdjangoblog.wordpress.com/2016/08/18/installing-pyenv-python-3-5/)
+  - `pyenv install 3.6.0`
 
-There is also an `asyncio` version of the client. Normal `asyncio` principles apply, and all methods are async:
+- **How to install** 
 
-```python
-from coppeliasim_zmqremoteapi_client.asyncio import *
+  - Git `clone` this repo or download as a ZIP and extract
+  - Run `python main.py`
 
-client = RemoteAPIClient()
+- **Run CoppeliaSym**
 
-async def main():
-    async with RemoteAPIClient() as client:
-        sim = await client.require('sim')
-        h = await sim.getObject('/Floor')
-        print(h)
+  - Go to `~/Descargas/CoppeliaSim_Edu_V4_6_0_rev10_Ubuntu20_04`
+  - Run `sudo ./coppeliaSim.sh`
+  - Open the scene `chanllenge_scenario.ttf`
+  - Set Dynamics Engine to `Bullet 2.7`
+  - Start simulation
 
-asyncio.run(main())
-```
+- **Extra Configuration** ⚙️
 
-on Windows, if it doesn't work properly, before calling `asyncio.run(...)` call:
+  - To run `quadricopter-py` on other operating systems you need to replace the `remote_api.so` located in the folder `../V-REP_PRO_EDU_V3_6_2/programming/remoteApiBindings/lib/lib`.
 
-```python
-asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-```
+## Documentation
+- **Quadricopter**
+    - Represents the drone with its respective attributes and sensors.
 
-A note about performance of sequential requests: if performing many commands in one shot, and results will be used later, consider using `asyncio.gather` for improved throughput.
 
-E.g. getting the handles of 100 objects:
 
-```python
-handles = await asyncio.gather(*[sim.getObject(f'/Object{i+1}') for i in range(100)])
-```
+| Method               | Parameters|                Description                           |        Return                    |
+|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
 
-Also check out the examples in [`clients/python`](https://github.com/CoppeliaRobotics/zmqRemoteApi/blob/master/clients/python).
+| land                 | sMap - Object Scene Map | Centers the quadricopter with the object | True if found sucess it and false if lose the object |
+
+- **SceneMap**
+    - Fundamental for define the limits of the quadricopter simpler.
+
+- **VisionSensor**
+    - Responsible for Quadricopter vision
+
+| Atribute             | Type      |                Description                           | Default value |
+|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
+| id                   | int       | Get object handle vision sensor                      |    |
+| _clientID            | int       | Id of the client with api remote                     | |
+| resolution           | int       | Resolution the image                                 | |
+| line                 | int       | Vector line representing a matrix line               | |
+| half                 | int       | Divide the image into two parts                      | |  
+
+| Method               | Parameters|                Description                           |        Return                    |
+|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
+| getImage             |           | Get imagem of the vision sensor                      | Return an array with view values       |
+| getPositionObject    | image - Array of the captured image  <br> refObj - Object value reference in vision sensor   | Get the object position of the vision sensor                      | Return an array with orientation and direction respectively |
+
+- **TargetControl**
+    - Object responsible for move the quadricopter. Him works like a control remote. 
+
+| Atribute             | Type      |                Description                           | Default value |
+|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
+| id                   | int       | Get object handle vision sensor                      |    |
+| _clientID            | int       | Id of the client with api remote                     | | 
+
+| Method               | Parameters|                Description                           |        Return                    |
+|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
+| getPosition          |           | Get the target position                              | Return the coordinate of the target x, y, z |
+| setPosition          | x, y, z   | Set the target position                              |  |
+
+- **SonarSensor**
+    - Responsible for detect colision of the quadricopter. Proximity sensor.
+
+| Atribute             | Type      |                Description                           | Default value |
+|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
+| id                   | int       | Get object handle sonar  sensor                      |    |
+| _clientID            | int       | Id of the client with api remote                     |    | 
+
+| Method               | Parameters|                Description                           |        Return                    |
+|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
+| getStateColision     |           | Checks if the quadricopter will collide              | Return true if will collide and false if not |
+
+## Documentation
+
+- [VREP](http://www.coppeliarobotics.com/helpFiles/)
+
+## Community
+
+- [Forum](http://www.forum.coppeliarobotics.com)
+
+## Tanks
+Thanks you cimantec that allowed me to perform this test which provided knowing and learning how to use robotic automation tools. I would like to improve and learn a lot more in this area of study.
