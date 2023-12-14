@@ -36,52 +36,21 @@
   - To run `quadricopter-py` on other operating systems you need to replace the `remote_api.so` located in the folder `../V-REP_PRO_EDU_V3_6_2/programming/remoteApiBindings/lib/lib`.
 
 ## Documentation
-- **Quadricopter**
+
+- **Class SceneMap**
+    - Define the limits of the quadricopter simpler.
+
+- **Class Quadricopter**
     - Represents the drone with its respective attributes and sensors.
 
-- **SceneMap**
-    - Fundamental for define the limits of the quadricopter simpler.
-
-- **VisionSensor**
+- **Class VisionSensor**
     - Responsible for Quadricopter vision
 
-| Atribute             | Type      |                Description                           | Default value |
-|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
-| id                   | int       | Get object handle vision sensor                      |    |
-| _clientID            | int       | Id of the client with api remote                     | |
-| resolution           | int       | Resolution the image                                 | |
-| line                 | int       | Vector line representing a matrix line               | |
-| half                 | int       | Divide the image into two parts                      | |  
-
-| Method               | Parameters|                Description                           |        Return                    |
-|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
-| getImage             |           | Get imagem of the vision sensor                      | Return an array with view values       |
-| getPositionObject    | image - Array of the captured image  <br> refObj - Object value reference in vision sensor   | Get the object position of the vision sensor                      | Return an array with orientation and direction respectively |
-
-- **TargetControl**
+- **Class TargetControl**
     - Object responsible for move the quadricopter. Him works like a control remote. 
 
-| Atribute             | Type      |                Description                           | Default value |
-|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
-| id                   | int       | Get object handle vision sensor                      |    |
-| _clientID            | int       | Id of the client with api remote                     | | 
-
-| Method               | Parameters|                Description                           |        Return                    |
-|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
-| getPosition          |           | Get the target position                              | Return the coordinate of the target x, y, z |
-| setPosition          | x, y, z   | Set the target position                              |  |
-
-- **SonarSensor**
+- **Class SonarSensor**
     - Responsible for detect colision of the quadricopter. Proximity sensor.
-
-| Atribute             | Type      |                Description                           | Default value |
-|:--------------------:|:---------:|:----------------------------------------------------:|:-------------:|
-| id                   | int       | Get object handle sonar  sensor                      |    |
-| _clientID            | int       | Id of the client with api remote                     |    | 
-
-| Method               | Parameters|                Description                           |        Return                    |
-|:--------------------:|:---------:|:----------------------------------------------------:|:--------------------------------:|
-| getStateColision     |           | Checks if the quadricopter will collide              | Return true if will collide and false if not |
 
 ## Wiki
 

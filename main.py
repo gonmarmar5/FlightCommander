@@ -3,6 +3,7 @@ from scene.scene_map import SceneMap
 
 SPEED = 0.05
 REF_OBJ = 23
+
 if __name__ == "__main__":
     sMap = SceneMap(-8, 8, -8, 8, 0.5, 3)
     quadricopter = Quadricopter(24, vMin=SPEED)
