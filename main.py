@@ -5,7 +5,7 @@ SPEED = 0.05
 REF_OBJ = 23
 
 if __name__ == "__main__":
-    sMap = SceneMap(-8, 8, -8, 8, 0.5, 3)
+    sMap = SceneMap(-8, 8, -8, 8, 0.25, 1)
     quadricopter = Quadricopter(24, vMin=SPEED)
     if quadricopter._clientID != -1:
         print("Server Connect!")

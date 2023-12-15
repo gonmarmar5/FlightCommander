@@ -172,6 +172,12 @@ class Quadricopter():
                     xEnable = True
             
             self.target.setPosition(x, y, z)
+
+            if self.sonar.getStateColision():
+                print("I'm gonna collide?: " ,self.sonar.getStateColision())
+                self.vMin = 0
+                #todo move the drone to a position where it is not in danger of colliding
+                
             time.sleep(0.1)
 
             #todo: Tengo que ver como sabe que el objeto esta en la imagen
