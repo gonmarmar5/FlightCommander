@@ -172,6 +172,12 @@ class Quadricopter():
                     xEnable = True
             
             self.target.setPosition(x, y, z)
+
+            if self.sonar.getStateColision():
+                print("I'm gonna collide?: " ,self.sonar.getStateColision())
+                self.vMin = 0
+                #todo move the drone to a position where it is not in danger of colliding
+                
             time.sleep(0.1)
 
             #todo: Tengo que ver como sabe que el objeto esta en la imagen
@@ -250,6 +256,15 @@ class Quadricopter():
             time.sleep(0.15)
 
     class VisionSensor():
+        ''' PARAMETERS:
+
+        id (int): Get object handle vision sensor
+        _clientID (int): Id of the client with api remote
+        resolution (int): Resolution the image
+        line (int): Vector line representing a matrix line
+        half (int): Divide the image into two parts
+        '''
+
         id          = None
         _clientID   = None
         resolution  = None
@@ -258,97 +273,151 @@ class Quadricopter():
 
 
         def __init__(self, clientID):
+
+            # Get the object handle for the vision sensor
             self.id = vrep.simxGetObjectHandle(clientID, 'Vision_sensor', vrep.simx_opmode_blocking)[1]
             self._clientID = clientID
+
+            # Initiate image streaming for the vision sensor
             vrep.simxGetVisionSensorImage(clientID, self.id, 0, vrep.simx_opmode_streaming)
             time.sleep(0.5)
 
         def getImage(self):
+            '''
+            Goal: Get the image from the vision sensor.
+
+            Output: 
+            - image (list), a list representing the image captured by the vision sensor (each element represents a pixel value).
+            '''
+
             if not self.resolution:
+                # Initiate image retrieval in buffer mode. 
+                # NOTE: using buffer mode ensures that the most recent vision sensor image is retrieved when the method is called.
                 error, res, image = vrep.simxGetVisionSensorImage(self._clientID, self.id, 0, vrep.simx_opmode_buffer)
+                
                 self.resolution = res[0]
                 self.line = self.resolution * 3
-                self.half = int(self.line*self.resolution/2)
+                self.half = int(self.line * self.resolution / 2)
+                
                 return image
+            
             return vrep.simxGetVisionSensorImage(self._clientID, self.id, 0, vrep.simx_opmode_buffer)[2]
 
         def getPositionObject(self, image, refObj) -> list:
-            front = image[self.half:]
-            back = image[:self.half]
+            '''
+            Goal: Get the object position of the vision sensor, used in landing.
+
+            Input: 
+            - image (list): Array of the captured image.
+            - refObj (int): Object value reference in vision sensor.
+            
+            Output: 
+            - An array with orientation and direction respectively.
+            '''
+
+            def search_in_half(half, refObj, orientation):
+                '''
+                Goal: Search for the object in a given image half.
+
+                Input:
+                - half (list): Image half to search.
+                - refObj (int): Object value reference in vision sensor.
+                - orientation (float): Current orientation.
+
+                Output: 
+                - The orientation and control values.
+                '''
+                control = 0
+                searched = 0
+                valor = back.pop()
+
+                for valor in half:
+                    control += 1
+                    valor = back.pop()
+
+                    if refObj == valor:
+                        searched += 1
+                        # Check if the object is found in 3 consecutive pixels
+                        if searched >= 3:
+                            break
+                    else:
+                        searched = 0
+
+                    # Reset control and searched if reached the end of a line
+                    if control == self.line:
+                        control = 0
+                        searched = 0
+
+                return orientation, control
+
             control = 0
             orientation = None
-            searched = 0
             v = 0.02
+
+            # Split the image into front and back halves
+            front = image[self.half:]
+            back = image[:self.half]
+            
             if refObj in front:
                 control = 0
                 orientation = v
-                while True:
-                    control += 1
-                    valor = front.pop()
-                    if refObj == valor:
-                        searched += 1
-                        if searched >= 3:
-                            break
-                    else:
-                        searched = 0
-                    
-                    if control == self.line:
-                        control = 0
-                        searched = 0
-                    
-                    if len(front) == 0:
-                        control = 0
-                        searched = 0
-                        break
-            
+                
+                # Search for the object in the front half
+                orientation, control = search_in_half(front, refObj, orientation)
+
             if refObj in back: 
                 control = 0
                 orientation = -v if not orientation else 0
-                while True:
-                    control += 1
-                    valor = back.pop()
-                    if refObj == valor:
-                        searched += 1
-                        if searched >= 3:
-                            break
-                    else:
-                        searched = 0
-                    
-                    if control == self.line:
-                        control = 0
-                        searched = 0
-                    
-                    if len(back) == 0:
-                        control = 0
-                        searched = 0
-                        break
-            
+                
+                # Search for the object in the back half
+                orientation, control = search_in_half(back, refObj, orientation)
+
             if control == 0:
-                return [-1, -1]
-            elif control >= ((self.line/2) -4) and control <= self.line/2:
-                return [orientation, 0] 
+                return [-1, -1]  # No object found in the image
+            elif control >= ((self.line/2) - 4) and control <= self.line/2:
+                return [orientation, 0]  # Object centered in the image
             elif control <= self.line/2:
-                return [orientation, -v]
+                return [orientation, -v]  # Object to the left in the image
             else:
-                return [orientation, v]   
+                return [orientation, v]   # Object to the right in the image
 
     class TargetControl():
+        ''' PARAMETERS:
+
+        id (int): Get object handle vision sensor
+        _clientID (int): Id of the client with api remote
+        '''
+
         id         = None
         _clientID  = None
         
         def __init__(self, clientID):
+            # Get the object handle for the quadricopter target
             self.id = vrep.simxGetObjectHandle(clientID, 'Quadricopter_target', vrep.simx_opmode_blocking)[1]
             self._clientID = clientID
+
+            # Initiate image streaming for the vision sensor
             vrep.simxGetObjectPosition(self._clientID, self.id, -1, vrep.simx_opmode_streaming)
             time.sleep(0.5)
 
         def getPosition(self):
+            '''
+            Goal: Get the target position
+
+            Return: Coordinate of the target x, y, z
+            '''
             return vrep.simxGetObjectPosition(self._clientID, self.id, -1, vrep.simx_opmode_buffer)[1]
 
         def setPosition(self, x, y, z):
             vrep.simxSetObjectPosition(self._clientID, self.id, -1, [x, y, z], vrep.simx_opmode_oneshot)
 
     class SonarSensor():
+        ''' PARAMETERS:
+
+        id (int): Get object handle sonar  sensor
+        _clientID (int): Id of the client with api remote
+        '''
+
         id         = None
         _clientID  = None
 
@@ -359,4 +428,9 @@ class Quadricopter():
             time.sleep(0.5)
 
         def getStateColision(self):
+            '''
+            Goal: Checks if the quadricopter will collide.
+
+            Output: True if will collide and false if not.
+            '''
             return vrep.simxReadProximitySensor(self._clientID, self.id, vrep.simx_opmode_buffer)[1]
