@@ -245,7 +245,7 @@ class generate_path_planning():
         nodes = []
         for i in list(graph.nodes):
             try:
-                for j in range(1, 5):
+                for j in range(1, 11):
                     neighbors = [
                         (i[0] + j, i[1]),
                         (i[0] - j, i[1]),

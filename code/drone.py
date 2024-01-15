@@ -41,25 +41,28 @@ def select_init_path(paths, risk, position_drone, goal, objects, objects_per_pat
     # Penalizamos más o menos según el riesgo lo que tardaremos en esquivar todos los objetos que encontremos (que es una cantidad desconocida ya que sabemos cuantos objetos se activaran y cuantos objectos hay en cada camino pero no cuantos objetos se activaran en cada camino)
     battery_stations_per_path_2 = []
     for i in range(len(objects_per_path)):
-        objects_per_path[i] *= objects * risk_number / 1.5
+        objects_per_path[i] *= objects * risk_number * 1.2
 
         # Hacemos lo mismo pero para las estaciones batería
-        battery_stations_per_path_2.append((max(battery_stations_per_path) - battery_stations_per_path[i]) * risk_number)
+        battery_stations_per_path_2.append((max(battery_stations_per_path) - battery_stations_per_path[i]) * risk_number / 1.9)
 
-        length_per_path[i] = length_per_path[i] / 44 / risk_number
+        length_per_path[i] = length_per_path[i] / 28 / risk_number
 
     # Finalmente, seleccionamos un camino en base a lo largo que es, los objetos que puede tener y la estaciones de batería que presenta
     risks = -np.array(length_per_path) - np.array(objects_per_path) - np.array(battery_stations_per_path_2)
     selected_path = np.argmax(risks)
 
     if selected_path == 0:
-        print("The algorithm has selected the difficult path")
+        print("The algorithm has selected the fast path")
+        goal_2 = [288,211] # Estimamos el punto intermedio
     elif selected_path == 1:
         print("The algorithm has selected the medium path")
+        goal_2 = [277,92]
     else:
-        print("The algorithm has selected the easy path")
+        print("The algorithm has selected the slow path")
+        goal_2 = [44,284]
 
-    return paths[selected_path], objects_per_path[selected_path]
+    return paths[selected_path], objects_per_path[selected_path], goal_2
 
 
 def select_path(graph, risk, charge_stations, position_drone, goal, objects, objects_in_this_path, battery):
@@ -91,9 +94,9 @@ def select_path(graph, risk, charge_stations, position_drone, goal, objects, obj
     if risk == "h":
         risk_number = 0.5
     elif risk == "m":
-        risk_number = 0.75
+        risk_number = 0.65
     else:
-        risk_number = 0.9
+        risk_number = 0.8
 
     # Y penalizamos más o menos que estemos en un camino con muchos o con pocos obstáculos
     objects_in_this_path *= objects * risk_number
@@ -119,11 +122,11 @@ def main(args=None):
     init_position = np.array([49, 119])
     init_position_coppelia = np.array([-10.925, -4.75])
 
-    charge_stations_coppelia = [[-5.425, 5.9],
-                    [-9.65, 4.225], 
-                    [1.35, -9.3],
-                    [6.55, 9.025],
-                    [-10, -8.5]]
+    charge_stations_coppelia = [[-5.4, 5.9],
+                    [-9.625, 4.225], 
+                    [1.375, -9.3],
+                    [6.575, 9.025],
+                    [-9.975, -8.5]]
     
     charge_stations = []
     for charge_station in charge_stations_coppelia:
@@ -139,7 +142,7 @@ def main(args=None):
     total_map_objects = 25
     objects_per_path = [16, 13, 10]
     is_weekend = random.randint(0,1)
-    is_holiday = random.randint(0, 1)
+    is_holiday = random.randint(0,1)
     is_raining = random.randint(0,1)
 
     # Definimos el número de objetos que se activaran dependiendo de si llueve y de si es fin de semana o vacaciones
@@ -148,21 +151,21 @@ def main(args=None):
         objects = 0.3
     else:
         print("Today is not weekend")
-        objects = 0.1
+        objects = 0.03
 
     if is_holiday == 1:
         print("Today is holidays")
         objects += 0.3
     else:
         print("Today is not holiday")
-        objects += 0.1
+        objects += 0.03
 
     if is_raining == 1:
         print("Today is raining")
         objects += 0.3
     else:
         print("Today is not raining")
-        objects += 0.1
+        objects += 0.03
 
     total_collidable_objects = int(round(total_map_objects * objects))
 
@@ -198,12 +201,12 @@ def main(args=None):
     robot.desactivate_objects(selected_objects)
 
     # Seleccionamos el camino que seguiremos usando decisiones deliverativas
-    selected_path, objects_in_this_path = select_init_path(paths, risk, init_position, goal, objects, objects_per_path, battery_stations_per_path)
+    selected_path, objects_in_this_path, goal_2 = select_init_path(paths, risk, init_position, goal, objects, objects_per_path, battery_stations_per_path)
 
     # para saber el tiempo medio de cada camino, calcularemos el tiempo que se ha tardado en llegar a la meta
     start_time = time.time()
 
-    current_goal = goal
+    current_goal = goal_2
     
     # una vez tenemos todos los valores iniciales empezamos a mover el dron
     while coppelia.is_running():
@@ -216,8 +219,13 @@ def main(args=None):
 
             position = np.round(((goal - init_position) * (position_coppelia[:2] - init_position_coppelia)) /  (goal_coppelia - init_position_coppelia) + init_position)
 
+            if goal[0] != goal_2[0] or goal[1] != goal_2[1]:
+                if np.abs(position[0] - goal_2[0]) < 10 and np.abs(position[1] - goal_2[1]) < 10:
+                    current_goal = goal
+                    identifier = 2
+
             # actualizamos que camino queremos seguir (en función a si necesitamos cargar el dron o no)
-            if need_to_charge == False and battery < 80:
+            if need_to_charge == False and battery < 70:
                 try:
                     need_to_charge, selected_charge_station = select_path(graph, risk, charge_stations, position, goal, objects, objects_in_this_path, battery)
                 except:
@@ -225,6 +233,7 @@ def main(args=None):
                     
                 if need_to_charge == True:
                     identifier = 2
+                    previous_goal = current_goal
 
             # si hace falta cargarlo
             if need_to_charge == True:
@@ -247,7 +256,7 @@ def main(args=None):
                     position_coppelia, orientation = robot.getposition_drone()
 
                     need_to_charge = False
-                    current_goal = goal # la meta vuelve a ser la del principio
+                    current_goal = previous_goal # la meta vuelve a ser la del principio
                     identifier = 2
 
             # si se ha llegado a la meta acabamos la simulación
@@ -268,7 +277,12 @@ def main(args=None):
                     # si no está quitado lo quitamos, y quitamos los vecinos para simular el tamaño del dron
                     graph.remove_node((node[0], node[1]))
 
-                    for j in range(1, 5):
+                    if goal_2[0] == 277:
+                        number = 8
+                    else:
+                        number = 11
+
+                    for j in range(1, number):
                         nodes.append((node[0] + j, node[1]))
                         nodes.append((node[0] - j, node[1]))
                         nodes.append((node[0], node[1] + j))
@@ -337,6 +351,7 @@ def main(args=None):
             # En cada paso que da el robot le bajamos un poco la batería de manera aleatoria
             battery -= round(random.random(), 3)
             print(battery)
+            time.sleep(0.2)
         except:
             break
     

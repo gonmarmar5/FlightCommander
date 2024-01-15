@@ -97,7 +97,7 @@ class QuadCopter():
     def desactivate_objects(self, objects_to_init):
         # volvemos los objetos invisibles y no colisionables
         for i in range(self.number_objects):
-            if i in objects_to_init:
+            if i not in objects_to_init:
                 self.sim.setObjectInt32Param(self.objects[i], self.sim.objintparam_visibility_layer, 0)
                 if i == 18:
                     self.sim.setObjectInt32Param(self.objects_2[2], self.sim.objintparam_visibility_layer, 0)
@@ -107,8 +107,8 @@ class QuadCopter():
                     self.sim.setObjectInt32Param(self.objects_2[0], self.sim.objintparam_visibility_layer, 0)
                 elif i == 2:
                     self.sim.setObjectInt32Param(self.objects_2[1], self.sim.objintparam_visibility_layer, 0)
-                if i != 0:
-                    self.sim.setModelProperty(self.objects_folder[i], self.sim.modelproperty_not_respondable)
+                #if i != 0:
+                #    self.sim.setModelProperty(self.objects_folder[i], self.sim.modelproperty_not_respondable)
 
     def activate_objects_again(self):
         # volvemos los objetos visibles y colisionables
