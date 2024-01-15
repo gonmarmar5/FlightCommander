@@ -30,3 +30,5 @@
 ## Wiki
 
 - [GitHub](https://github.com/gonmarmar5/FlightCommander/wiki/)
+
+Para ejecutar drone.py, se debe tener dicho archivo y robotica.py en su equivalente de la carpeta C:\Program Files\CoppeliaRobotics\CoppeliaSimEdu\programming\zmqRemoteApi\clients\python y la escena de CoppeliaSim abierta.
